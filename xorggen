@@ -1,0 +1,84 @@
+#!/usr/bin/perl
+use Digest::MD5 qw(md5 md5_hex md5_base64);
+my $vendor = '10de';
+my $product = '1c03';
+
+my @gpu;
+open IO, "lspci -n -d $vendor:$product|";
+while(<IO>) {
+	if (/(\d+)\:(\d+)\.(\d+)/) {
+		push(@gpu, sprintf('%d:%d:%d', $1, $2, $3));
+	}
+}
+close IO;
+
+foreach $g (@gpu) {
+	print "- BusID \"$g\"\n";
+}
+
+sub section {
+	my ($type, $name, $data) = @_;
+	return "Section \"$type\"\n\tIdentifier\t\"$name\"\n". $data ."EndSection\n\n";
+}
+
+sub layout {
+	$data = '';
+	for $i (0 .. $#gpu) {
+		my $right;
+		if ($i eq 0) {
+			$right = "0 0";
+		} else {
+			$right = ' RightOf "Screen'. ($i-1) .'"';
+		}
+		$data .= "\tScreen $i \"Screen$i\" $right\n";
+	}
+
+	return section 'ServerLayout', 'Layout0', $data;
+}
+
+sub monitor {
+	my $v = shift;
+	return section('Monitor', "Monitor$v", '');
+}
+
+sub device {
+	my ($v, $pci) = @_;
+	return section('Device', "Device$v", "\tDriver\t\"nvidia\"\n\tVendorName\t\"NVIDIA Corporation\"\n\tBusID\t\"$pci\"\n");
+}
+
+sub screen {
+	my $v = shift; 
+	return section('Screen', "Screen$v", "\tDevice\t\"Device$v\"\n".
+										"\tMonitor\t\"Monitor$v\"\n".
+										"\tDefaultDepth\t24\n".
+										"\tOption\t\"AllowEmptyInitialConfiguration\" \"True\"\n".
+										"\tOption\t\"Coolbits\" \"25\"\n".
+										"\tOption\t\"RegistryDwords\" \"PowerMizerEnable=0x1; PerfLevelSrc=0x2222; PowerMizerLevel=0x1; PowerMizerDefault=0x1; PowerMizerDefaultAC=0x1\"\n".
+										"\tOption\t\"Stereo\" \"0\"\n".
+										"\tSubSection\t\"Display\"\n".
+										"\t\tDepth\t24\n".
+										"\tEndSubSection\n");
+}
+
+$raw = layout();
+
+for $i (0 .. $#gpu) {
+	$raw .= monitor($i);
+	$raw .= device($i, $gpu[$i]);
+	$raw .= screen($i);
+}
+
+open F, ">/etc/X11/xorg.conf.new";
+print F $raw;
+close F;
+
+open F, "</etc/X11/xorg.conf";
+$old = join '', <F>;
+close F;
+
+if (md5($old) ne md5($raw)) {
+	open F, ">/etc/X11/xorg.conf";
+	print F $raw;
+	close F;
+	print "- updated.\n";
+}

@@ -1,9 +1,13 @@
 # nvidia-settings with added nvspeedup.c
 - allow to increase core and memory speed directly from console via added nvspeedup.c using nvlink proto via Xorg nvidia driver
 
-to increase individual GPUs memory and core speeds:
+Usage, to increase individual GPUs memory and core speeds:
 ```
 ./nvspeedup 1811 -100 1500 -100 1500 -100 1500 -100 1500 -100
+```
+
+example output:
+```
 - connecting to display ':0'
 - OK.
 

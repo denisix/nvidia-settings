@@ -46,3 +46,12 @@ example output:
 ```
 
 *you need running Xorg server with Nvidia driver installed*
+- to generate Xorg config for all nvidia GPUs that matched by (variables in script header):
+```
+my $vendor = '10de';
+my $product = '1c03';
+```
+then run the following script:
+```
+./xorggen
+```
